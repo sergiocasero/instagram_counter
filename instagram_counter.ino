@@ -6,23 +6,22 @@
 
 #include "DisplayManager.h"
 
-const char* WIFI_SSID = "Turuturay";
-const char* WIFI_PASS = "stog@TicFa#";
+const char* WIFI_SSID = "prebeta";
+const char* WIFI_PASS = "prebeta23";
 
-const int LOOP_DELAY = 500;
-const int SCREEN_DELAY = 2000;
-const int capacity = JSON_OBJECT_SIZE(10);
+const String USERNAME = "jacobo.cl";
+const String ENDPOINT = "http://sergiocasero.es/instagram.php?username=";
+
+const int WIFI_DELAY = 500;
+const int DISPLAY_DELAY = 2000;
+const int CAPACITY = JSON_OBJECT_SIZE(10);
+
 const int SDA_SCREEN = D3;
 const int SCL_SCREEN = D4;
 
-const String URL = "http://sergiocasero.es/instagram.php?username=queicopostres";
-
-
 SSD1306 display(0x3c, SDA_SCREEN, SCL_SCREEN);
 
-/* The display */
-
-DisplayManager displayManager = DisplayManager();
+DisplayManager manager = DisplayManager();
 
 struct instagram {
 	int followers;
@@ -31,59 +30,53 @@ struct instagram {
 };
 
 void setup() {
+	Serial.begin(115200);
 	display.init();
 
-	Serial.begin(115200);
+	manager.connectingWiFi(display);
+
 	WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-	Serial.println();
-
-	displayManager.connectingWiFi(display);
-
 	while(WiFi.status() != WL_CONNECTED) {
-	delay(LOOP_DELAY);
 		Serial.print(".");
+		delay(WIFI_DELAY);
 	}
 
-	displayManager.wifiConnected(display);
+	manager.wiFiConnected(display);
 }
 
 void loop() {
-	instagram userData = getInstagramData();
-	printUserData(userData);
+	instagram user = getInstagramData(USERNAME);
+	print(user);
 }
 
-instagram getInstagramData() {
+instagram getInstagramData(String username) {
+	String url = ENDPOINT + username;
 	HTTPClient client;
-	client.begin(URL);
+	client.begin(url);
 
 	int responseCode = client.GET();
 
-	StaticJsonBuffer<capacity> jsonBuffer;
-	JsonObject& instagramData = jsonBuffer.parseObject(client.getString());
+	StaticJsonBuffer<CAPACITY> buffer;
+	JsonObject& json = buffer.parseObject(client.getString());
 
-	instagram userData;
+	instagram user;
 
-	if(instagramData.success()) {
-		userData.followers = instagramData["followers"];
-		userData.following = instagramData["following"];
-		userData.posts = instagramData["posts"];
+	if (json.success()) {
+		user.followers = json["followers"];
+		user.following = json["following"];
+		user.posts = json["posts"];
 	} else {
-		Serial.println("error");
+		Serial.println("Error parsing");
 	}
 
-	return userData;
+	return user;
 }
 
-void printUserData(instagram userData) {
-	Serial.println("Followers: " + String(userData.followers));
-	Serial.println("Following: " + String(userData.following));
-	Serial.println("Posts: " + String(userData.posts));
-
-	displayManager.data(display, "@queicopostres", "Followers", String(userData.followers));
-	delay(SCREEN_DELAY);
-	displayManager.data(display, "@queicopostres", "Following", String(userData.following));
-	delay(SCREEN_DELAY);
-	displayManager.data(display, "@queicopostres", "Posts", String(userData.posts));
-	delay(SCREEN_DELAY);
+void print(instagram user) {
+	manager.data(display, USERNAME, "Followers", String(user.followers));
+	delay(DISPLAY_DELAY);
+	manager.data(display, USERNAME, "Following", String(user.following));
+	delay(DISPLAY_DELAY);
+	manager.data(display, USERNAME, "Posts", String(user.posts));
+	delay(DISPLAY_DELAY);
 }
